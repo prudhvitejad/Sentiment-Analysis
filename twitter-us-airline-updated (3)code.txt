@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -271,4 +272,279 @@ plt.ylabel("Metrics")
 plt.title("Training and Validation Metrics")
 plt.legend()
 plt.grid()
+=======
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from transformers import RobertaModel, RobertaTokenizer, AdamW
+from torch.utils.data import DataLoader, Dataset, random_split
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.graph_objs as go
+from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from sklearn.utils import resample
+import random
+# Check for GPU
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Device:", device)
+# Load dataset
+dataset_path = "/kaggle/input/twitter-us-airline/Twitter_US_Airline/Tweets.csv"
+df = pd.read_csv(dataset_path)
+df.shape
+df.info()
+df.head()
+df.tail()
+df.isna() #returns True if value is missing and False if value is not missing
+df.isna().any() #same as isna() but it works in column level
+df.isna().sum() #count the number of missing values (NaNs) in each column
+# Fix random seeds for reproducibility
+torch.manual_seed(42)
+np.random.seed(42)
+random.seed(42)
+# Step 1: Load and Preprocess Data
+def clean_text(text):
+    import re
+    text = re.sub(r"http\S+", "", text)  # Remove URLs
+    text = re.sub(r"@\w+", "", text)    # Remove mentions
+    text = re.sub(r"[^a-zA-Z\s]", "", text)  # Remove special characters
+    return text.strip().lower()
+# Apply text cleaning
+df["clean_text"] = df["text"].apply(clean_text)
+df.shape
+df.info()
+df.head()
+df.tail()
+# Extract cleaned texts and labels
+texts = df["clean_text"].tolist()
+labels = df["airline_sentiment"].map({"negative": 0, "neutral": 1, "positive": 2}).tolist()
+# Step 2: Oversample Data for Class Balancing
+def oversample_data(texts, labels):
+    data = list(zip(texts, labels))
+    negative = [x for x in data if x[1] == 0]
+    neutral = [x for x in data if x[1] == 1]
+    positive = [x for x in data if x[1] == 2]
+
+    neutral_upsampled = resample(neutral, replace=True, n_samples=len(negative), random_state=42)
+    positive_upsampled = resample(positive, replace=True, n_samples=len(negative), random_state=42)
+
+    balanced_data = negative + neutral_upsampled + positive_upsampled
+    random.shuffle(balanced_data)
+    return zip(*balanced_data)
+# Step 3: Dataset Class
+class SentimentDataset(Dataset):
+    def __init__(self, texts, labels, tokenizer, max_len=128):
+        self.texts = texts
+        self.labels = labels
+        self.tokenizer = tokenizer
+        self.max_len = max_len
+
+    def __len__(self):
+        return len(self.texts)
+
+    def __getitem__(self, idx):
+        encoding = self.tokenizer(
+            self.texts[idx],
+            max_length=self.max_len,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt",
+        )
+        item = {key: val.squeeze(0) for key, val in encoding.items()}
+        item["labels"] = torch.tensor(self.labels[idx], dtype=torch.long)
+        return item
+# Step 4: Attention Layer
+class AttentionLayer(nn.Module):
+    def __init__(self, hidden_size):
+        super(AttentionLayer, self).__init__()
+        self.attention = nn.Linear(hidden_size, 1, bias=False)
+
+    def forward(self, rnn_output):
+        weights = torch.softmax(self.attention(rnn_output), dim=1)
+        weighted_output = torch.sum(weights * rnn_output, dim=1)
+        return weighted_output, weights
+# Step 5: Base Model with RoBERTa + RNN + Attention
+class RoBERTaRNNWithAttention(nn.Module):
+    def __init__(self, model_type="lstm", hidden_size=128, num_classes=3):
+        super(RoBERTaRNNWithAttention, self).__init__()
+        self.roberta = RobertaModel.from_pretrained("roberta-large")  # Use roberta-large
+        self.rnn_type = model_type.lower()
+        self.hidden_size = hidden_size
+
+        if self.rnn_type == "lstm":
+            self.rnn = nn.LSTM(self.roberta.config.hidden_size, hidden_size, batch_first=True, bidirectional=True)
+        elif self.rnn_type == "bilstm":
+            self.rnn = nn.LSTM(self.roberta.config.hidden_size, hidden_size, batch_first=True, bidirectional=True)
+        elif self.rnn_type == "gru":
+            self.rnn = nn.GRU(self.roberta.config.hidden_size, hidden_size, batch_first=True, bidirectional=True)
+        else:
+            raise ValueError(f"Unsupported RNN type: {model_type}")
+
+        self.attention = AttentionLayer(hidden_size * 2)  # Bidirectional doubles the size
+        self.fc = nn.Linear(hidden_size * 2, num_classes)
+
+    def forward(self, input_ids, attention_mask):
+        with torch.no_grad():  # Freeze RoBERTa during training
+            roberta_output = self.roberta(input_ids=input_ids, attention_mask=attention_mask)
+        last_hidden_state = roberta_output.last_hidden_state
+        rnn_output, _ = self.rnn(last_hidden_state)
+        attn_output, _ = self.attention(rnn_output)
+        logits = self.fc(attn_output)
+        return logits
+# Step 6: Ensemble Model
+class EnsembleModel(nn.Module):
+    def __init__(self, models):
+        super(EnsembleModel, self).__init__()
+        self.models = nn.ModuleList(models)
+        self.fc = nn.Linear(len(models) * 3, 3)  # For 3 classes (Negative, Neutral, Positive)
+
+    def forward(self, input_ids, attention_mask):
+        logits_list = [model(input_ids, attention_mask) for model in self.models]
+        logits = torch.cat(logits_list, dim=1)  # Concatenate logits
+        return self.fc(logits)
+# Step 7: Oversample and Create Dataset
+balanced_texts, balanced_labels = oversample_data(texts, labels)
+tokenizer = RobertaTokenizer.from_pretrained("roberta-large")  # Use roberta-large tokenizer
+dataset = SentimentDataset(balanced_texts, balanced_labels, tokenizer)
+# Split dataset
+train_size = int(0.8 * len(dataset))
+val_size = len(dataset) - train_size
+train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=16)
+# Initialize models
+lstm_model = RoBERTaRNNWithAttention(model_type="lstm").to(device)
+bilstm_model = RoBERTaRNNWithAttention(model_type="bilstm").to(device)
+gru_model = RoBERTaRNNWithAttention(model_type="gru").to(device)
+ensemble_model = EnsembleModel([lstm_model, bilstm_model, gru_model]).to(device)
+# Optimizer and loss
+optimizer = torch.optim.AdamW(ensemble_model.parameters(), lr=2e-5)
+criterion = nn.CrossEntropyLoss()
+# Early Stopping Setup
+best_val_loss = float("inf")
+patience = 5 # Allow more epochs before early stopping(Higher patience for more training epochs)
+patience_counter = 0
+train_losses, val_losses = [], []
+train_accuracies, val_accuracies = [], []
+# Training loop
+num_epochs = 20
+for epoch in range(num_epochs):
+    ensemble_model.train()
+    train_loss, train_correct = 0, 0
+    for batch in train_loader:
+        optimizer.zero_grad()
+        input_ids = batch["input_ids"].to(device)
+        attention_mask = batch["attention_mask"].to(device)
+        labels = batch["labels"].to(device)
+
+        logits = ensemble_model(input_ids, attention_mask)
+        loss = criterion(logits, labels)
+        loss.backward()
+        optimizer.step()
+
+        train_loss += loss.item()
+        train_correct += (logits.argmax(dim=1) == labels).sum().item()
+
+    train_loss /= len(train_loader)
+    train_accuracy = train_correct / len(train_dataset)
+    train_losses.append(train_loss)
+    train_accuracies.append(train_accuracy)
+
+    ensemble_model.eval()
+    val_loss, val_correct = 0, 0
+    val_preds, val_labels = [], []
+
+    with torch.no_grad():
+        for batch in val_loader:
+            input_ids = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            labels = batch["labels"].to(device)
+
+            logits = ensemble_model(input_ids, attention_mask)
+            loss = criterion(logits, labels)
+
+            val_loss += loss.item()
+            val_correct += (logits.argmax(dim=1) == labels).sum().item()
+            val_preds.extend(logits.argmax(dim=1).cpu().numpy())
+            val_labels.extend(labels.cpu().numpy())
+
+    val_loss /= len(val_loader)
+    val_accuracy = val_correct / len(val_dataset)
+    val_losses.append(val_loss)
+    val_accuracies.append(val_accuracy)
+
+    print(f"Epoch {epoch + 1}/{num_epochs}")
+    print(f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.4f}")
+    print(f"Val Loss: {val_loss:.4f}, Val Accuracy: {val_accuracy:.4f}")
+
+    # Early Stopping Check
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
+        patience_counter = 0
+        # Save best model
+        torch.save(ensemble_model.state_dict(), "best_ensemble_model.pth")
+    else:
+        patience_counter += 1
+        if patience_counter >= patience:
+            print("Early stopping triggered.")
+            break
+#Printing
+print("train_losses = ", train_losses)
+print("train_accuracies = ", train_accuracies)
+
+print("val_losses = ", val_losses)
+print("val_accuracies = ", val_accuracies)
+
+print("val_preds = ", val_preds)
+print("val_labels = ", val_labels)
+
+# Classification report
+print(classification_report(val_labels, val_preds, target_names=["Negative", "Neutral", "Positive"]))
+# Compute confusion matrix
+cm = confusion_matrix(val_labels, val_preds)
+
+# Plot the confusion matrix
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=["Negative", "Neutral", "Positive"], yticklabels=["Negative", "Neutral", "Positive"])
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.title('Confusion Matrix')
+plt.show()
+# Plotting Graphs
+epochs_range = range(1, len(train_losses) + 1)
+plt.figure(figsize=(12, 6))
+
+plt.subplot(1, 2, 1)
+plt.plot(epochs_range, train_losses, label="Train Loss")
+plt.plot(epochs_range, val_losses, label="Validation Loss")
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.title("Loss Across Epochs")
+plt.legend()
+
+plt.subplot(1, 2, 2)
+plt.plot(epochs_range, train_accuracies, label="Train Accuracy")
+plt.plot(epochs_range, val_accuracies, label="Validation Accuracy")
+plt.xlabel("Epochs")
+plt.ylabel("Accuracy")
+plt.title("Accuracy Across Epochs")
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+# Final Graph
+plt.figure(figsize=(8, 6))
+plt.plot(epochs_range, train_losses, label="Train Loss")
+plt.plot(epochs_range, val_losses, label="Validation Loss")
+plt.plot(epochs_range, train_accuracies, label="Train Accuracy")
+plt.plot(epochs_range, val_accuracies, label="Validation Accuracy")
+plt.xlabel("Epochs")
+plt.ylabel("Metrics")
+plt.title("Training and Validation Metrics")
+plt.legend()
+plt.grid()
+>>>>>>> dd37f37c6b2d785e8823caf4806130f94cfde898
 plt.show()

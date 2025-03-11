@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Why built-in model.fit() is Faster than custom training loop?
 
 1️⃣ Built-in XLA Optimization 🚀
@@ -13,3 +14,20 @@ Works seamlessly with multi-GPU and TPU training without extra code.
 4️⃣ Automatic Loss Calculation 📉
 No need to manually calculate gradients using tf.GradientTape().
 
+=======
+Why built-in model.fit() is Faster than custom training loop?
+
+1️⃣ Built-in XLA Optimization 🚀
+
+model.fit() utilizes TensorFlow's optimized computation graphs for faster execution.
+
+2️⃣ Efficient Data Pipeline ⚡
+Uses tf.data.Dataset for automatic batching, shuffling, and prefetching.
+
+3️⃣ GPU/TPU Optimization 🔥
+Works seamlessly with multi-GPU and TPU training without extra code.
+
+4️⃣ Automatic Loss Calculation 📉
+No need to manually calculate gradients using tf.GradientTape().
+
+>>>>>>> dd37f37c6b2d785e8823caf4806130f94cfde898
