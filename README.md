@@ -90,4 +90,4 @@
 - Enhances feature interactions and context awareness.
 
 ### 🧮 Dense Layer (Softmax): Classification
-- Final output layer with `softmax` activation to predict sentiment class probabilities.
+- Output layer with `softmax` activation to predict sentiment class probabilities.
