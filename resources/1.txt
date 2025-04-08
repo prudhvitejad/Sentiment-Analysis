@@ -1,0 +1,137 @@
+let's understand our normal traditional neural network.
+So let's take one layer with one neuron and another Softmax layer with one neuron.
+
+We give some input to neuron layer and this neuron will process that input and it will produce some output or hidden state. Then our Softmax layer is using that hidden state to create our required output. So here, this is our traditional neural network.
+	img
+
+Input ---->  Neural Layer  ---->  SoftMax  ---> Output 
+
+And we use this traditional neural network in many cases in doing many predictions where the inputs and outputs are independent of each other. 
+
+
+What happens in case of sequential task?
+A sequential task is a task where current state is dependent on the previous state or we can say like the next state is dependent on the current state.
+	img
+
+Previous_state	Current_state	Next_state
+X(t-1)		X(t)		X(t+1)
+
+
+That means the current element, our required output will be dependent on the previous element.
+Some of the example of sequential tasks are DNA sequence classification, stock market prediction, sentiment analysis, music generation, language translation. So in these kind of cases, current state or a current element is dependent on its previous element.
+To deal with this kind of tasks or to deal with a sequential task, RNN network was designed. 
+
+
+RNN(Recursive Neural Network):
+-----------------------------
+RNN network is a neural network where output of a layer is fed to the next layer in the current time step and to the same layer in the next time step.
+In sequential task next state depends on current state.
+RNN networks are designed to deal with sequential tasks like language translation, POS tagging, stock prediction, etc.
+
+Eg: Rahul is a good boy -----> Noun Verb Determinant Adjective Noun (Text -----> POS tags)
+
+
+Our task is to design/build a model which will generate these tags for us.
+
+Here just look at this sentence, when we are reading the sentence, we are reading it in a sequential order.
+We are not reading 'a' first then 'is' then 'good' then 'Rahul' then 'boy'.
+We are reading the sentence in a sequential manner. That is we are reading 'Rahul' first, then we are reading 'is', then 'a', then 'good', then 'boy'. 
+So in similar manner we can, we can design one network which mimic the same procedure.
+	img
+So let's take one layer and one neuron. So remember, when we are reading this sentence we are reading 'Rahul' first, then we are remembering the meaning of Rahul. Then we are reading 'is', So while reading 'is' we remember everything about 'Rahul'.
+
+
+Same thing we are doing here, we are feeding 'Rahul' first, then our layer i.e., neuron will process 'Rahul' and it will create one hidden state. Then our Softmax layer will use that hidden state to give us our required POS tag, that is Noun you can see.
+
+So here RNN layer should understand what is 'Rahul' and should remember it.
+
+When we are we are giving 'is' as an input to the RNN layer, we are first feeding the hidden state to the same RNN layer. Then we are feeding the embedding for the word 'is' to the same RNN layer.
+
+So first it received the embedding for 'Rahul', it processed it and it remember what it means like What is the meaning of Rahul here then it is using that embedding, that process meaning as an input while it is reading the next word that is 'Is'. Then it will process all those information. It will create another hidden state and the same thing and the same cycle will go on till the last word.
+
+Last word that is 'boy' is being fed to the RNN layer and then the hidden state will be used by the Softmax layer to produce our required pure stacks. So this is the architecture of a RNN network. Now let's see the same RNA network with respect to time step.
+	img
+
+During forward propagation the information will flow from layer to layer.
+You can also see it will flow with respect to time step and the same thing will happen in case of back propagation.
+So during back propagation the weights and biases will be corrected or they will be changed from layer to layer, also with respect to time step.
+
+
+It was observed that RNN was good to deal with sequential tasks, it was good when we are dealing with a shorter sequence or when the length of the sequence is not that longer.
+When we are dealing with a longer sequence also we are using only two layers with one-one neuron.
+
+And the path for the back propagation is a bit longer for this sentence and also when we have a deeper network, we face the issue of vanishing or exploding gradient. So same thing happened to RNN when we are dealing with longer sentences or longer sequences.
+
+Issue with RNN:
+---------------
+When we are dealing with long sentences or long dependencies, vanishing gradient problem will appear. This is because we are using chain rule for gradient calculation and the longer the chain, the higher the chance that we would be facing vanishing gradient or exploding gradient problem.
+And the solution is LSTM, GRU.
+
+
+LSTM(Long Short Term Memory):
+-----------------------------
+To deal with the vanishing or exploding gradient problem in simple RNN networks LSTM network is designed.
+
+So here we are specifically creating a cell memory through which information can travel from one time step to another. Also we have introduced gated mechanism that is forget gate, update gate and output gate to control the flow of information from one time state to another.
+	img
+So instead of having only hidden state, input and output, here in LSTM we have two that is Cell state and hidden state.
+	img
+So you can see instead of having one hidden state, we are having hidden state as well as cell state. So this is the LSTM network with respect to time step.
+
+Now let's understand the gated mechanism. There are 3 gates like Forget gate, Update gate, Output gate.
+
+Function	    Min	Max
+Sigmoid Function    0	1
+tanh Function	    -1	+1
+
+Forget gate:
+-----------
+Here we are controlling the flow of information, like how much information we are keeping from the previous time step or we can say like how much information we are discarding from the previous time step.
+
+Eg:
+sigmoid[h(t-1) + X(t)] ----> 0 ----> 0 * c(t-1) = 0 ---> We are not retaining any information from cell state of previous time state
+
+sigmoid[h(t-1) + X(t)] ----> 1 ----> 1 * c(t-1) = c(t-1) ---> We are retaining complete information from cell state of previous time state
+
+sigmoid[h(t-1) + X(t)] ----> 0.75 ----> 0.75 * c(t-1) ---> We are retaining 75% of information from cell state of previous time state
+
+
+Update gate:
+------------
+in case of update gate we are using new information to update our cell state. So in Forget gate we are forgetting information, we are discarding and we are keeping certain amount of information and we are using those information plus new information to update our cell set memory.
+
+sigmoid[X(t) + h(t-1)]    tanh[X(t) + h(t-1)]	sigmoid * tanh    C(t) = (sigmoid * tanh) + C(forget gate)
+0			   -1			 0 		   0 + C(forget gate) = C(forget gate)
+1			   +1			 1		   1 + C(forget gate)
+0.75			   -0.55		 -0.4125	   -0.4125 + C(forget gate)
+
+
+Output gate:
+------------
+in case of output gate we are using the updated cell state to create our required output or required hidden state for the particular or current time step.
+
+sigmoid[X(t) + h(t-1)]    tanh[C(t)]	h(t) = sigmoid * tanh
+0			   -1		 0
+1			   +1		 1
+0.56			   -0.85	 -0.476	
+
+
+Issue with LSTM:
+----------------
+It has very large number of parameters. hence, its resource requirement is high and little bit slower in training.
+It has a high tendency to over fit.
+And the solution is GRU.
+
+
+GRU(Gated Recurrent Unit):
+--------------------------
+To deal with these kind of issues, GRU network was designed.
+
+
+GRUs merge the forget and input gates into a single update gate, simplifying the architecture.
+They lack a separate cell state, relying solely on the hidden state.
+
+
+
+
+

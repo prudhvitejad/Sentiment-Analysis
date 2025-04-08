@@ -1,0 +1,36 @@
+Attention mechanism is inspired by Human Visual Processing System.
+
+When you read a page in a book, the majority of what is in your field of vision is actually disregarded and you pay more attention to the word that you are currently reading. This allows your brain to focus on what matters most while ignoring everything else. In order to imitate the same effect in our deep learning models, we assign an attention weight to each of our inputs.
+
+Input 		  - With Great Power Comes Great Responsibility
+Attention Weights - 0.1  0.2   0.5   0.1   0.05  0.05
+
+These weights represent the relative importance of each input element to the other input elements. This way, we guide our model to pay greater attention to particular inputs that are more critical to performing the task at hand. Attention mechanism in deep learning was first used by Bahdanau for machine translation.
+
+
+The traditional method of machine translation was to use sequence to sequence models. In these models, we pass the input sentence to a RNN that functions as an encoder. RNNs as you may know, have a hidden state in addition to their outputs, which are represented with the letters h for encoder and s for the decoder, which is also an RNN.
+
+These hidden states can contain information from all the previous words in our sentence. Using this capability of hidden states, a context vector(C) is constructed from the last hidden state in encoder RNN which actually includes the content of the source sentence. This is then passed to decoder so that the decoder can translate the words into the target language.
+
+The challenge with this approach was that if the sentence was long, all of the information could not be compressed in that last hidden state and hence our translation would be incorrect and inaccurate if the output sentence was long and detailed. The main idea of attention, which Bahdanau also used in his paper, is that we give context vector access to the entire input sequence instead of just the last hidden state. In this way, even if the length of the sentence increases, the context vector can still contain the contents of the sentence.
+
+Now we just need to assign an attention weight on each of those inputs so that the decoder can focus on the relevant positions in the input sequence.
+
+But how can this be achieved? 
+
+Using our new attention based model, we should take the current decoder hidden state and every encoder hidden state and feed them into a score function.
+
+What does this function do? 
+
+The idea behind the score function is to measure the similarity between two vectors. Using the score function allows our model to selectively concentrate on helpful parts of the input sequence and thereby learn the alignments between them.
+
+There are many ways to calculate a score and some of them are General, Dot, Concat and the location based function in which the alignment scores are computed from solely the target decoder state.
+
+Next step is to calculate the alignment vector, we should simply use softmax function to convert our score values into probabilities. Now we have the attention weights we were searching for.
+
+Given the alignment vector as weights, the context vector is computed as the weighted average over all the source hidden states. Now we can pass the context vector into the decoder so that our decoder can access the entire input sequence and also focus on the relevant positions in the input sequence. So, to put it simply, attention model works like an accounting notebook.
+
+For every query, which in our example was the last hidden state of decoder, the attention gives us a table which shows us how much attention we owe to each of the keys, which in our case were the encoder hidden states.
+
+
+
