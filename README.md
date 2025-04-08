@@ -46,3 +46,48 @@
 29.         END IF  
 30.     END FOR  
 31. END PROCEDURE
+```
+
+## 🧩 Pipeline Overview
+
+- **Input:** IMDb Movie Reviews Dataset (CSV)
+- **Preprocessing:**
+  - Text Cleaning (URLs, mentions, punctuations, etc.)
+  - Tokenization using RoBERTa tokenizer
+  - Padding & Truncation to a fixed length
+  - Label Encoding (Sentiment → Numeric)
+- **Model:** Ensembled Model (RoBERTa + LSTM + BiLSTM + GRU + Multi-Head Attention)
+- **Output:** Predicted Sentiment Class
+
+
+
+
+## 🛠️ Modules Used
+
+| Module             | Purpose                                       |
+|--------------------|-----------------------------------------------|
+| `re`               | Text cleaning and preprocessing               |
+| `pandas`           | Data loading and manipulation                 |
+| `numpy`            | Numerical operations                          |
+| `transformers`     | RoBERTa tokenizer and pretrained model        |
+| `tensorflow`       | Deep learning model definition and training   |
+| `sklearn`          | Train-test split and label encoding           |
+
+
+## 🧠 Algorithms Used
+
+### ✅ RoBERTa: Contextual Embedding
+- Transformer-based model pretrained on a large corpus.
+- Generates contextualized vector embeddings for each word/token.
+
+### 🔁 LSTM / BiLSTM / GRU: Sequence Modeling
+- LSTM: Learns time-step dependencies in a forward direction.
+- BiLSTM: Learns both forward and backward dependencies.
+- GRU: Lightweight variant for efficient sequence modeling.
+
+### ✨ Multi-Head Attention: Feature Refinement
+- Allows the model to focus on different semantic aspects of the sequence.
+- Enhances feature interactions and context awareness.
+
+### 🧮 Dense Layer (Softmax): Classification
+- Final output layer with `softmax` activation to predict sentiment class probabilities.
