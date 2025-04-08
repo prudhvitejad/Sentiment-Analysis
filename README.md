@@ -48,7 +48,7 @@
 31. END PROCEDURE
 ```
 
-## 🧩 Pipeline Overview
+## 🧩 Overview
 
 - **Input:** IMDb Movie Reviews Dataset (CSV)
 - **Preprocessing:**
